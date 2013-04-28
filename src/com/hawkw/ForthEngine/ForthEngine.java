@@ -6,30 +6,166 @@ public class ForthEngine {
 	// Our Forth Engine's "memory" consists of an array of
 	// MEMORY_MODULE_SIZE-index byte arrays. The default size of a memory module
 	// is 1 kB. A location in memory is addressed as ram[x][y]
+	//
+	// for example,
+	// 0x0000 - 0x0400 : module 0
+	// 0x1000 - 0x1400 : module 1
+	// 0x2000 - 0x2400 : module 2
+	// ...ad nauseum
+
 	protected static final int DEFAULT_MEMORY_MODULES = 2;
 	protected static final int MEMORY_MODULE_SIZE = 1024;
 	protected static int moduleCount;
 	private int[][] ram;
 
-	private NodeStack<int> DataStack;
-	private NodeStack<int> ReturnStack;
+	// the Forth Engine consists of three primary variables:
+	// the DataStack, to which numbers are pushed
+	// the ReturnStack, used for subroutines
+	// and the ProgramCounter, which stores the address of the current location
+	// in memory
+	private NodeStack<Integer> DataStack;
+	private NodeStack<Integer> ReturnStack;
+	protected ProgramCounter counter = new ProgramCounter(0, 0);
 
-	public ForthEngine() {
+	/**
+	 * 0-argument constructor: creates a ForthEngine with the default amount of
+	 * 'installed' RAM modules
+	 * 
+	 * @throws TooMuchRAMRequestedError
+	 */
+	public ForthEngine() throws TooMuchRAMRequestedError {
 		this(DEFAULT_MEMORY_MODULES);
 	}
 
-	public ForthEngine(int m) {
-		moduleCount = m;
+	/**
+	 * 1-argument constructor: creates a ForthEngine with a user-requested
+	 * number of 'installed' RAM modules
+	 * 
+	 * @param requestedModules
+	 *            the number of RAM modules 'installed' in this ForthEngine
+	 * @throws TooMuchRAMRequestedError
+	 *             if the number of requested modules is greater than 16 (as the
+	 *             RAM-addressing system supports up to 16 RAM modules)
+	 */
+	public ForthEngine(int requestedModules) throws TooMuchRAMRequestedError {
+		if (requestedModules > 16)
+			throw new TooMuchRAMRequestedError();
+		moduleCount = requestedModules;
 		ram = new int[moduleCount][MEMORY_MODULE_SIZE];
 	}
 
+	/**
+	 * Runs the program currently stored in memory by resetting the counter to
+	 * (0,0) and evaling and incrementing for each location in RAM
+	 */
+	public void run() {
+		counter.reset(); // reset the ProgramCounter to (0,0)
+		for (int[] module : ram) { // loop through the 'installed' modules,
+									// starting with the first
+			for (int i = 0; i < module.length; i++) { // loop through the
+														// locations in each
+														// module
+				eval(); // eval the current instruction
+				counter.increment(); // increment the ProgramCounter to the next
+										// position
+			}
+		}
+	}
+
+	/**
+	 * Evaluates the command at the program counter.
+	 */
 	public void eval() {
-		// TODO: write eval()
+
+		int currentInstruction = ram[counter.getModule()][counter.getIndex()];
+		int tempA = 0x00000000;
+		int tempB = 0x00000000;
+		short address = 0x0000;
+
+		switch (currentInstruction) {
+		case 0x01: // STORE
+			address = Byte.parseByte(Integer.toString(currentInstruction)
+					.substring(3, 7));
+			counter.increment();
+			currentInstruction = ram[counter.getModule()][counter.getIndex()];
+			writeToRAM(currentInstruction, parseHex(address));
+			break;
+		case 0x02: // ADD
+			DataStack.push(DataStack.pop() + DataStack.pop());
+			break;
+		case 0x03: // SUBTRACT
+			DataStack.push(DataStack.pop() - DataStack.pop());
+			break;
+		case 0x04: // RSTORE
+			ReturnStack.push(DataStack.pop());
+			break;
+		case 0x05: // FETCH
+			address = Byte.parseByte(Integer.toString(currentInstruction)
+					.substring(3, 7));
+			DataStack.push(readFromRAM(parseHex(address)));
+			break;
+		case 0x06: // AND
+			DataStack.push(DataStack.pop() & DataStack.pop());
+			break;
+		case 0x07: // DROP
+			DataStack.pop();
+			break;
+		case 0x08: // DUP
+			DataStack.push(DataStack.pop());
+			DataStack.push(DataStack.pop());
+			break;
+		case 0x09: // OR
+			DataStack.push(DataStack.pop() | DataStack.pop());
+			break;
+		case 0x0A: // OVER
+			// FIXME: implement this
+			break;
+		case 0x0B: // RFETCH
+			DataStack.push(ReturnStack.pop());
+			break;
+		case 0x0C: // SWAP
+			tempA = DataStack.pop();
+			tempB = DataStack.pop();
+			DataStack.push(tempB);
+			DataStack.push(tempA);
+			break;
+		case 0x0D: // XOR
+			DataStack.push(DataStack.pop() ^ DataStack.pop());
+			break;
+		case 0x0E: // IF
+			// FIXME: implement this
+			break;
+		case 0x0F: // CALL
+			
+		}
+	}
+
+	public void fillRAM(int instruction) {
+		ram[counter.getModule()][counter.getIndex()] = instruction;
+		counter.increment();
+	}
+
+	public void push(int instruction) {
+		this.DataStack.push(instruction);
+	}
+
+	private int readFromRAM(RAMLocation r) {
+		return ram[r.getModule()][r.getIndex()];
+	}
+
+	private void writeToRAM(Integer i, RAMLocation r) {
+		ram[r.getModule()][r.getIndex()] = i;
 	}
 
 	/**
 	 * A RAMLocation is essentially an ordered pair that represents a location
 	 * within the memory matrix
+	 * 
+	 * A RAM location should parse to a 16-bit hex value, as in the following
+	 * example: (note that the first hex digit corresponds to the RAM module,
+	 * and the next three digits correspond to the location within the module)
+	 * 0x0000 - 0x0400 : module 0 0x1000 - 0x1400 : module 1 0x2000 - 0x2400 :
+	 * module 2 ...ad nauseum
 	 * 
 	 * @author hawk
 	 * 
@@ -70,7 +206,7 @@ public class ForthEngine {
 	 * @return a RAMLocation representing the (input)th location in the RAM
 	 *         matrix
 	 */
-	private RAMLocation parseRAMLocation(int input) {
+	private RAMLocation parseDecimal(int input) {
 		if (input >= MEMORY_MODULE_SIZE) {
 			return new RAMLocation(0, input);
 		} else {
@@ -79,11 +215,11 @@ public class ForthEngine {
 		}
 	}
 
-	private int RAMLocationToHex (RAMLocation r) {
-		//TODO: write this
-		return 0;
-		
+	public static RAMLocation parseHex(short address) {
+		// TODO Auto-generated method stub
+		return null;
 	}
+
 	/**
 	 * The ProgramCounter is a special instance of RAMLocation that represents
 	 * the current location in memory. The programCounter has access to the
@@ -91,26 +227,23 @@ public class ForthEngine {
 	 * the RAM matrix.
 	 * 
 	 * @see RAMLocation
-	 * @author hawk
 	 * 
 	 */
-	static class ProgramCounter extends RAMLocation {
+	class ProgramCounter extends RAMLocation {
 
 		public ProgramCounter(int m, int i) {
 			super(m, i);
-			// TODO Auto-generated constructor stub
 		}
 
 		/**
-		 * 
+		 * Increments the PC to the next loc in the memory matrix.
 		 */
 		public void increment() {
-			if (this.index == 255 && this.module == moduleCount) {
+			if (this.index == 1023 && this.module == moduleCount) {
 				// if the index of the program counter is at the 1023rd (final)
 				// location in the last memory module in the matrix, then it is
 				// time to 'wrap around' and go back to index [0][0]
-				this.index = 0;
-				this.module = 0;
+				this.reset();
 			} else if (this.index >= MEMORY_MODULE_SIZE) {
 				// if the program counter currently points to the last index in
 				// the memory module, then it is time to go to the 0th location
@@ -123,6 +256,14 @@ public class ForthEngine {
 				// increment to the next index in the module
 				this.index += 0;
 			}
+		}
+
+		/**
+		 * resets the program counter to (0,0)
+		 */
+		public void reset() {
+			this.index = 0;
+			this.module = 0;
 		}
 	}
 }
