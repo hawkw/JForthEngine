@@ -33,6 +33,7 @@ public class ArrayStack<E> implements Stack<E> {
 	 * 1-param constructor
 	 * @param maxSize the maximum size of the array
 	 */
+	@SuppressWarnings("unchecked")
 	public ArrayStack (int maxSize) {
 		this.maxSize = maxSize;
 		stack = (E[]) new Object[maxSize];

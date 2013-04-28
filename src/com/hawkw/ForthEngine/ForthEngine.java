@@ -1,5 +1,6 @@
 package com.hawkw.ForthEngine;
 
+import java.util.Scanner;
 import com.hawkw.Stack.NodeStack;
 
 public class ForthEngine {
@@ -16,16 +17,18 @@ public class ForthEngine {
 	protected static final int DEFAULT_MEMORY_MODULES = 2;
 	protected static final int MEMORY_MODULE_SIZE = 1024;
 	protected static int moduleCount;
-	private int[][] ram;
+	private String[][] ram;
 
 	// the Forth Engine consists of three primary variables:
 	// the DataStack, to which numbers are pushed
 	// the ReturnStack, used for subroutines
 	// and the ProgramCounter, which stores the address of the current location
 	// in memory
-	private NodeStack<Integer> DataStack;
-	private NodeStack<Integer> ReturnStack;
+	protected NodeStack<String> DataStack = new NodeStack<String>();
+	protected NodeStack<String> ReturnStack = new NodeStack<String>();
 	protected ProgramCounter counter = new ProgramCounter(0, 0);
+	protected static Scanner scan = new Scanner(System.in);
+	protected boolean done = false;
 
 	/**
 	 * 0-argument constructor: creates a ForthEngine with the default amount of
@@ -51,7 +54,7 @@ public class ForthEngine {
 		if (requestedModules > 16)
 			throw new TooMuchRAMRequestedError();
 		moduleCount = requestedModules;
-		ram = new int[moduleCount][MEMORY_MODULE_SIZE];
+		ram = new String[moduleCount][MEMORY_MODULE_SIZE];
 	}
 
 	/**
@@ -59,16 +62,19 @@ public class ForthEngine {
 	 * (0,0) and evaling and incrementing for each location in RAM
 	 */
 	public void run() {
+		done = false;
 		counter.reset(); // reset the ProgramCounter to (0,0)
-		for (int[] module : ram) { // loop through the 'installed' modules,
-									// starting with the first
-			for (int i = 0; i < module.length; i++) { // loop through the
-														// locations in each
-														// module
-				eval(); // eval the current instruction
-				counter.increment(); // increment the ProgramCounter to the next
-										// position
-			}
+		while (!done) {
+			if (ForthParser.verboseMode)
+				System.out.println("-> evaling "
+						+ ram[counter.getModule()][counter.getIndex()]);
+			eval(); // eval the current instruction
+			counter.increment(); // increment the ProgramCounter to the next
+									// position
+			if (ForthParser.verboseMode)
+				System.out.println("-> ProgramCounter incremented to "
+						+ "(" + counter.getModule() + "," + counter.getIndex()
+						+ ")");
 		}
 	}
 
@@ -77,84 +83,138 @@ public class ForthEngine {
 	 */
 	public void eval() {
 
-		int currentInstruction = ram[counter.getModule()][counter.getIndex()];
-		int tempA = 0x00000000;
-		int tempB = 0x00000000;
-		short address = 0x0000;
+		String currentInstruction = ram[counter.getModule()][counter.getIndex()];
+		String tempA;
+		String tempB;
+		int tempInt;
+		String address;
 
-		switch (currentInstruction) {
-		case 0x01: // STORE
-			address = Byte.parseByte(Integer.toString(currentInstruction)
-					.substring(3, 7));
-			counter.increment();
-			currentInstruction = ram[counter.getModule()][counter.getIndex()];
-			writeToRAM(currentInstruction, parseHex(address));
+		switch (currentInstruction.substring(0, 4)) {
+		case "0x01": // STORE
+			address = currentInstruction.substring(4, 8);
+			writeToRAM(DataStack.pop(), parseHex(address));
 			break;
-		case 0x02: // ADD
-			DataStack.push(DataStack.pop() + DataStack.pop());
+		case "0x02": // ADD
+			tempInt = Integer.parseInt(DataStack.pop()) + Integer.parseInt(DataStack.pop());
+			DataStack.push(Integer.toString(tempInt));
 			break;
-		case 0x03: // SUBTRACT
-			DataStack.push(DataStack.pop() - DataStack.pop());
+		case "0x03": // SUBTRACT
+			tempInt = Integer.parseInt(DataStack.pop()) - Integer.parseInt(DataStack.pop());
+			DataStack.push(Integer.toString(tempInt));
 			break;
-		case 0x04: // RSTORE
+		case "0x04": // RSTORE
 			ReturnStack.push(DataStack.pop());
 			break;
-		case 0x05: // FETCH
-			address = Byte.parseByte(Integer.toString(currentInstruction)
-					.substring(3, 7));
+		case "0x05": // FETCH
+			address = currentInstruction.substring(4, 8);
 			DataStack.push(readFromRAM(parseHex(address)));
 			break;
-		case 0x06: // AND
-			DataStack.push(DataStack.pop() & DataStack.pop());
+		case "0x06": // AND
+			DataStack
+					.push(Integer.toHexString((Integer.parseInt(
+							DataStack.pop(), 16) & Integer.parseInt(
+							DataStack.pop(), 16))));
 			break;
-		case 0x07: // DROP
+		case "0x07": // DROP
 			DataStack.pop();
 			break;
-		case 0x08: // DUP
-			DataStack.push(DataStack.pop());
-			DataStack.push(DataStack.pop());
+		case "0x08": // DUP
+			if (ForthParser.verboseMode)
+				System.out.println("-> DUP " + DataStack.peek());
+			DataStack.push(DataStack.peek());
 			break;
-		case 0x09: // OR
-			DataStack.push(DataStack.pop() | DataStack.pop());
+		case "0x09": // OR
+			DataStack
+					.push(Integer.toHexString((Integer.parseInt(
+							DataStack.pop(), 16) | Integer.parseInt(
+							DataStack.pop(), 16))));
 			break;
-		case 0x0A: // OVER
+		case "0x0A": // OVER
 			// FIXME: implement this
 			break;
-		case 0x0B: // RFETCH
+		case "0x0B": // RFETCH
 			DataStack.push(ReturnStack.pop());
 			break;
-		case 0x0C: // SWAP
+		case "0x0C": // SWAP
 			tempA = DataStack.pop();
 			tempB = DataStack.pop();
 			DataStack.push(tempB);
 			DataStack.push(tempA);
 			break;
-		case 0x0D: // XOR
-			DataStack.push(DataStack.pop() ^ DataStack.pop());
+		case "0x0D": // XOR
+			DataStack
+					.push(Integer.toHexString((Integer.parseInt(
+							DataStack.pop(), 16) ^ Integer.parseInt(
+							DataStack.pop(), 16))));
 			break;
-		case 0x0E: // IF
-			// FIXME: implement this
+		case "0x0E": // IF
+			if (Integer.parseInt(DataStack.pop()) == 1) { // if N1 == true;
+				address = currentInstruction.substring(3, 7); // take the
+																// address from
+																// the word
+				if (ForthParser.verboseMode)
+					System.out.println("-> IF branching to " + address);
+				counter.branch(parseHex(address)); // branch to the address
+			}
+			if (ForthParser.verboseMode)
+				System.out.println("-> IF false, not branching");
 			break;
-		case 0x0F: // CALL
+		case "0x0F": // CALL
+			address = currentInstruction.substring(3, 7); // take the address
+															// from the word
+			if (ForthParser.verboseMode)
+				System.out.println("-> CALL " + address);
+			counter.branch(parseHex(address)); // branch to the address
+			break;
+		case "0x10": // EXIT
+			if (ForthParser.verboseMode)
+				System.out.println("-> EXIT");
+			done = true;
+			break;
+		case "0x11": // LIT
+			if (ForthParser.verboseMode)
+				System.out.println("-> LIT" + counter.getNext());
+			DataStack.push(counter.getNext());
+			break;
+		case "0x12": // COUT
+			if (ForthParser.verboseMode)
+				System.out.println("-> COUT" + DataStack.peek());
+			System.out.println(" > " + DataStack.pop());
+			break;
+		case "0x13": // CIN
+			tempA = getCIN();
+			if (ForthParser.verboseMode)
+				System.out.println("-> CIN " + tempA);
+			DataStack.push(tempA);
+			break;
+		}
 			
+
+		if (ForthParser.debugMode) {
+			if (!DataStack.empty())
+				System.out
+						.println("Debug: DataStack = " + DataStack.toString());
+			if (!ReturnStack.empty())
+				System.out.println("Debug: ReturnStack = "
+						+ ReturnStack.toString());
 		}
 	}
 
-	public void fillRAM(int instruction) {
-		ram[counter.getModule()][counter.getIndex()] = instruction;
+	public void fillRAM(String s) {
+		ram[counter.getModule()][counter.getIndex()] = s;
 		counter.increment();
 	}
 
-	public void push(int instruction) {
+	public void push(String instruction) {
 		this.DataStack.push(instruction);
 	}
 
-	private int readFromRAM(RAMLocation r) {
+	private String readFromRAM(RAMLocation r) {
 		return ram[r.getModule()][r.getIndex()];
 	}
 
-	private void writeToRAM(Integer i, RAMLocation r) {
-		ram[r.getModule()][r.getIndex()] = i;
+	private void writeToRAM(String s, RAMLocation r) {
+		ram[r.getModule()][r.getIndex()] = s;
 	}
 
 	/**
@@ -196,28 +256,18 @@ public class ForthEngine {
 	}
 
 	/**
-	 * Parses an integer representing the sequential position of a location in
+	 * Parses a two-byte hexadecimal representing the position of a location in
 	 * the RAM matrix into a RAMLocation object that represents it as an ordered
 	 * pair.
 	 * 
 	 * @param input
-	 *            an integer representing the sequential location in the RAM
-	 *            matrix
-	 * @return a RAMLocation representing the (input)th location in the RAM
-	 *         matrix
+	 *            a two-byte hex representing the location in the RAM matrix
+	 * @return a RAMLocation representing the location in the RAM matrix
 	 */
-	private RAMLocation parseDecimal(int input) {
-		if (input >= MEMORY_MODULE_SIZE) {
-			return new RAMLocation(0, input);
-		} else {
-			return new RAMLocation((input % MEMORY_MODULE_SIZE),
-					(input - MEMORY_MODULE_SIZE));
-		}
-	}
-
-	public static RAMLocation parseHex(short address) {
-		// TODO Auto-generated method stub
-		return null;
+	public RAMLocation parseHex(String address) {
+		int module = Integer.parseInt(address.substring(0, 2));
+		int index = Integer.parseInt(address.substring(3, 4));
+		return new RAMLocation(module, index);
 	}
 
 	/**
@@ -254,7 +304,22 @@ public class ForthEngine {
 				// if the index that the program counter currently points to is
 				// less than the size of the memory module, then we just
 				// increment to the next index in the module
-				this.index += 0;
+				this.index += 1;
+			}
+		}
+
+		/**
+		 * returns the value of the cell after the ProgramCounter
+		 * 
+		 * @return the value of the next cell in RAM
+		 */
+		public String getNext() {
+			if (this.index == 1023 && this.module == moduleCount) {
+				return ram[0][0];
+			} else if (this.index >= MEMORY_MODULE_SIZE) {
+				return ram[module + 1][0];
+			} else {
+				return ram[module][index + 1];
 			}
 		}
 
@@ -265,5 +330,22 @@ public class ForthEngine {
 			this.index = 0;
 			this.module = 0;
 		}
+
+		/**
+		 * sets the program counter equal to the RAMLocation given as a
+		 * parameter
+		 * 
+		 * @param r
+		 *            the RAMLocation to branch to
+		 */
+		public void branch(RAMLocation r) {
+			this.module = r.getModule();
+			this.index = r.getIndex();
+		}
+	}
+
+	public static String getCIN() {
+		System.out.print(" > ");
+		return scan.next();
 	}
 }

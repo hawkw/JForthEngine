@@ -1,13 +1,15 @@
 package com.hawkw.ForthEngine;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Scanner;
 
 import com.hawkw.Stack.NodeStack;
 
 public class ForthParser {
+
+	public static boolean debugMode = false;
+	public static boolean verboseMode = false;
+	public static Scanner stream;
 
 	/**
 	 * Gets the opcode for a FORTH command from the OpcodeLibrary
@@ -16,7 +18,7 @@ public class ForthParser {
 	 *            a String representing a FORTH command
 	 * @return the opcode for that command
 	 */
-	public static byte getOpcode(String command) {
+	public static String getOpcode(String command) {
 		final OpcodeLibrary d = OpcodeLibrary.valueOf(command);
 		return d.opcode();
 	}
@@ -44,156 +46,156 @@ public class ForthParser {
 		NOP {
 
 			@Override
-			byte opcode() {
-				return 0x00;
+			String opcode() {
+				return "0x00";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		STORE {
 
 			@Override
-			byte opcode() {
-				return 0x01;
+			String opcode() {
+				return "0x01";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 1;
 			}
 		},
 		ADD {
 
 			@Override
-			byte opcode() {
-				return 0x02;
+			String opcode() {
+				return "0x02";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		SUB {
 
 			@Override
-			byte opcode() {
-				return 0x03;
+			String opcode() {
+				return "0x03";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		RSTORE {
 
 			@Override
-			byte opcode() {
-				return 0x04;
+			String opcode() {
+				return "0x04";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		FETCH {
 
 			@Override
-			byte opcode() {
-				return 0x05;
+			String opcode() {
+				return "0x05";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 1;
 			}
 		},
 		AND {
 
 			@Override
-			byte opcode() {
-				return 0x06;
+			String opcode() {
+				return "0x06";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		DROP {
 
 			@Override
-			byte opcode() {
-				return 0x07;
+			String opcode() {
+				return "0x07";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		DUP {
 
 			@Override
-			byte opcode() {
-				return 0x08;
+			String opcode() {
+				return "0x08";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		OR {
 
 			@Override
-			byte opcode() {
-				return 0x09;
+			String opcode() {
+				return "0x09";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		OVER {
 
 			@Override
-			byte opcode() {
-				return 0x0A;
+			String opcode() {
+				return "0x0A";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		RFETCH {
 
 			@Override
-			byte opcode() {
-				return 0x0B;
+			String opcode() {
+				return "0x0B";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 
@@ -201,34 +203,34 @@ public class ForthParser {
 		SWAP {
 
 			@Override
-			byte opcode() {
-				return 0x0C;
+			String opcode() {
+				return "0x0C";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		XOR {
 
 			@Override
-			byte opcode() {
-				return 0x0D;
+			String opcode() {
+				return "0x0D";
 			}
 
 			@Override
 			int requiredArgs() {
-				
+
 				return 0;
 			}
 		},
 		IF {
 
 			@Override
-			byte opcode() {
-				return 0x0E;
+			String opcode() {
+				return "0x0E";
 			}
 
 			@Override
@@ -239,8 +241,8 @@ public class ForthParser {
 		CALL {
 
 			@Override
-			byte opcode() {
-				return 0x0F;
+			String opcode() {
+				return "0x0F";
 			}
 
 			@Override
@@ -251,8 +253,8 @@ public class ForthParser {
 		EXIT {
 
 			@Override
-			byte opcode() {
-				return 0x10;
+			String opcode() {
+				return "0x10";
 			}
 
 			@Override
@@ -263,8 +265,8 @@ public class ForthParser {
 		LIT {
 
 			@Override
-			byte opcode() {
-				return 0x11;
+			String opcode() {
+				return "0x11";
 			}
 
 			@Override
@@ -272,23 +274,23 @@ public class ForthParser {
 				return 0;
 			}
 		},
-		CHAR {
+		COUT {
 
 			@Override
-			byte opcode() {
-				return 0x12;
+			String opcode() {
+				return "0x12";
 			}
 
 			@Override
 			int requiredArgs() {
-				return 1;
+				return 0;
 			}
 		},
-		COUT {
+		CIN {
 
 			@Override
-			byte opcode() {
-				return 0x13;
+			String opcode() {
+				return "0x13";
 			}
 
 			@Override
@@ -297,7 +299,7 @@ public class ForthParser {
 			}
 
 		};
-		abstract byte opcode();
+		abstract String opcode();
 
 		abstract int requiredArgs();
 	}
@@ -305,40 +307,39 @@ public class ForthParser {
 	/**
 	 * Builds a word for a no-argument command from a one-byte opcode
 	 * 
-	 * @param opcode
+	 * @param currentInstruction
 	 *            the one-byte opcode
 	 * @return a word for that one-byte opcode
 	 */
-	public static int wordBuilder(byte opcode) {
-		return Integer.parseInt(opcode + "000000");
+	public static String wordBuilder(String currentInstruction) {
+		return currentInstruction + "000000";
 	}
 
 	/**
 	 * Builds a word for a one-argument command with a one-byte opcode and a
 	 * two-byte RAM address
 	 * 
-	 * @param opcode
+	 * @param currentInstruction
 	 *            the one-byte opcode
-	 * @param address
+	 * @param currentAddress
 	 *            the two-byte RAM address
 	 * @return a word containing the one-byte opcode and the two-byte RAM
 	 *         address
 	 */
-	public static int wordBuilder(byte opcode, short address) {
-		return Integer.parseInt(opcode + address + "00");
+	public static String wordBuilder(String currentInstruction,
+			String currentAddress) {
+		return currentInstruction + currentAddress + "00";
 	}
 
 	public static void main(String[] argv) {
 
 		ForthEngine engine = null;
 		File target = null;
-		Scanner stream;
 
 		NodeStack<String> filterStack = new NodeStack<String>();
 		NodeStack<String> instructionCompileStack = new NodeStack<String>();
 
 		boolean engineRunning = false;
-		boolean debugMode = false;
 
 		// really gross and ugly way of handling input
 		if (argv.length == 0) {
@@ -348,12 +349,18 @@ public class ForthParser {
 		} else {
 			try {
 				for (String s : argv) {
-					if (s.substring(0, 4) == "--mem") {
+					if (s.contains("--mem")) {
 						engine = new ForthEngine(Integer.parseInt(s.substring(
 								4, 6)));
 						engineRunning = true;
-					} else if (s.substring(0, 6) == "--debug") {
+					} else if (s.equals("--debug") || s.equals("-d"))  {
 						debugMode = true;
+						System.out.println("Debug mode set.");
+					} else if (s.equals("--verbose") || s.equals("-v")) {
+						verboseMode = true;
+						System.out.println("Verbose mode set.");
+						System.out
+								.println("Warning: Verbose mode is really verbose.");
 					} else {
 						target = new File(s);
 					}
@@ -369,54 +376,87 @@ public class ForthParser {
 				while (stream.hasNext()) {
 
 					filterStack.push(stream.next());
+					if (verboseMode)
+						System.out.println("-> pushed \""
+								+ filterStack.peek() + "\" to filterStack");
+				}
 
-					// if we find a comment-opening character...
-					if (filterStack.peek() == ")") {
-						// ...pop until we find a comment closing character
-						while (filterStack.peek() != "(")
+				while (!filterStack.empty()) {
+					// if we find a comment-closing character...
+					if (filterStack.peek().contains(")")) {
+						// ...pop until we find a comment character
+						while (!filterStack.empty()
+								&& !filterStack.peek().equals("(")) {
 							filterStack.pop();
-						filterStack.pop();
+						}
+						if (!filterStack.empty())
+							filterStack.pop();
 						// if we don't find a comment opening character...
 					} else {
 						// ...everything is fine and good!
 						instructionCompileStack.push(filterStack.pop());
+						if (verboseMode)
+							System.out.println("-> pushed \""
+									+ instructionCompileStack.peek()
+									+ "\" to instructionCompileStack");
 					}
 				}
 
-				byte currentInstruction = 0x00;
-				short currentAddress = 0x0000;
-
+				String currentInstruction = "0x00";
+				String currentAddress = "0x0000";
+				
+				
+				if (debugMode && !verboseMode) {
+					System.out.print("Debug: Loading instructions into memory...");
+				} else if (verboseMode) {
+					System.out.println("Debug: Loading instructions into memory...");
+				}
+			
 				while (!instructionCompileStack.empty()) {
 					if (getReqArgs(instructionCompileStack.peek()) == 1) {
-						currentInstruction = Byte
-								.parseByte(instructionCompileStack.pop());
-						currentAddress = Byte.parseByte(instructionCompileStack
-								.pop());
-						engine.fillRAM(wordBuilder(currentInstruction,
-								currentAddress));
+						currentInstruction = getOpcode(instructionCompileStack.pop());
+						currentAddress = instructionCompileStack.pop();
+						if (verboseMode)
+							System.out.println("-> fillRAM "
+									+ wordBuilder(currentInstruction, currentAddress));
+						engine.fillRAM(wordBuilder(currentInstruction, currentAddress));
 					} else if (getReqArgs(instructionCompileStack.peek()) == 0) {
-						currentInstruction = Byte
-								.parseByte(instructionCompileStack.pop());
+						currentInstruction = getOpcode(instructionCompileStack
+								.pop());
+						if (verboseMode)
+							System.out.println("-> fillRAM "
+									+ wordBuilder(currentInstruction));
 						engine.fillRAM(wordBuilder(currentInstruction));
 					}
 				}
-
+				
+				if (debugMode && !verboseMode) {
+					System.out.print("done!\n");
+				} else if (verboseMode) {
+					System.out.println("Debug: Loading instructions into memory: done!");
+				}
+				
 				// actually do the thing
+				if (debugMode)
+					System.out.println("Debug: running!");
 				engine.run();
-
 			}
 
 			catch (NumberFormatException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err.println("Caught a NumberFormatException.");
+				if (debugMode)
+					e.printStackTrace(System.err);
 			} catch (TooMuchRAMRequestedError e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err
+						.println("The ForthEngine RAM addressing system supports up to 16 'installed' memory modules. Please request fewer modules.");
+				if (debugMode)
+					e.printStackTrace(System.err);
 			} catch (FileNotFoundException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				System.err
+						.println("File not found. Please enter the name of the file to be interpreted.");
+				if (debugMode)
+					e.printStackTrace(System.err);
 			}
-
 		}
 	}
 }

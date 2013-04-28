@@ -110,7 +110,6 @@ public class NodeStack<E> implements Stack<E> {
 	public String toString () {
 		StringBuilder returnString = new StringBuilder("[ ");
 		Node<E> currentNode = topNode;
-		E currentElement;
 		for (int i = 0; i < size - 1; i++) {
 			returnString.append(currentNode.getElement().toString()  + ", ");
 			currentNode = currentNode.getNext();
