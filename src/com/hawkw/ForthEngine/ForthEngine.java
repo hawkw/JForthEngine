@@ -17,15 +17,15 @@ public class ForthEngine {
 	protected static final int DEFAULT_MEMORY_MODULES = 2;
 	protected static final int MEMORY_MODULE_SIZE = 1024;
 	protected static int moduleCount;
-	private String[][] ram;
+	private Word[][] ram;
 
 	// the Forth Engine consists of three primary variables:
 	// the DataStack, to which numbers are pushed
 	// the ReturnStack, used for subroutines
 	// and the ProgramCounter, which stores the address of the current location
 	// in memory
-	protected NodeStack<String> DataStack = new NodeStack<String>();
-	protected NodeStack<String> ReturnStack = new NodeStack<String>();
+	protected NodeStack<Word> DataStack = new NodeStack<Word>();
+	protected NodeStack<Word> ReturnStack = new NodeStack<Word>();
 	protected ProgramCounter counter = new ProgramCounter(0, 0);
 	protected static Scanner scan = new Scanner(System.in);
 	protected boolean done = false;
@@ -54,7 +54,7 @@ public class ForthEngine {
 		if (requestedModules > 16)
 			throw new TooMuchRAMRequestedError();
 		moduleCount = requestedModules;
-		ram = new String[moduleCount][MEMORY_MODULE_SIZE];
+		ram = new Word[moduleCount][MEMORY_MODULE_SIZE];
 	}
 
 	/**
@@ -65,16 +65,12 @@ public class ForthEngine {
 		done = false;
 		counter.reset(); // reset the ProgramCounter to (0,0)
 		while (!done) {
-			if (ForthParser.verboseMode)
-				System.out.println("-> evaling "
-						+ ram[counter.getModule()][counter.getIndex()]);
 			eval(); // eval the current instruction
 			counter.increment(); // increment the ProgramCounter to the next
 									// position
 			if (ForthParser.verboseMode)
-				System.out.println("-> ProgramCounter incremented to "
-						+ "(" + counter.getModule() + "," + counter.getIndex()
-						+ ")");
+				System.out.println("-> ProgramCounter incremented to " + "("
+						+ counter.getModule() + "," + counter.getIndex() + ")");
 		}
 	}
 
@@ -83,37 +79,42 @@ public class ForthEngine {
 	 */
 	public void eval() {
 
-		String currentInstruction = ram[counter.getModule()][counter.getIndex()];
-		String tempA;
-		String tempB;
+		Word currentInstruction = ram[counter.getModule()][counter.getIndex()];
+		Word tempA;
+		Word tempB;
 		int tempInt;
 		String address;
+		String bigEnd = currentInstruction.getHexValue().substring(0, 4);
 
-		switch (currentInstruction.substring(0, 4)) {
+		if (ForthParser.verboseMode)
+			System.out.println("-> evaling " + currentInstruction);
+
+		switch (bigEnd) {
 		case "0x01": // STORE
-			address = currentInstruction.substring(4, 8);
+			address = currentInstruction.getAddress();
 			writeToRAM(DataStack.pop(), parseHex(address));
 			break;
 		case "0x02": // ADD
-			tempInt = Integer.parseInt(DataStack.pop()) + Integer.parseInt(DataStack.pop());
-			DataStack.push(Integer.toString(tempInt));
+			tempInt = Integer.parseInt(DataStack.pop().getString())
+					+ Integer.parseInt(DataStack.pop().getString());
+			DataStack.push(new Word("" + tempInt));
 			break;
 		case "0x03": // SUBTRACT
-			tempInt = Integer.parseInt(DataStack.pop()) - Integer.parseInt(DataStack.pop());
-			DataStack.push(Integer.toString(tempInt));
+			tempInt = Integer.parseInt(DataStack.pop().getString())
+					- Integer.parseInt(DataStack.pop().getString());
+			DataStack.push(new Word("" + tempInt));
 			break;
 		case "0x04": // RSTORE
 			ReturnStack.push(DataStack.pop());
 			break;
 		case "0x05": // FETCH
-			address = currentInstruction.substring(4, 8);
+			address = currentInstruction.getAddress();
 			DataStack.push(readFromRAM(parseHex(address)));
 			break;
 		case "0x06": // AND
-			DataStack
-					.push(Integer.toHexString((Integer.parseInt(
-							DataStack.pop(), 16) & Integer.parseInt(
-							DataStack.pop(), 16))));
+			tempInt = Integer.parseInt(DataStack.pop().getString())
+					& Integer.parseInt(DataStack.pop().getString());
+			DataStack.push(new Word("" + tempInt));
 			break;
 		case "0x07": // DROP
 			DataStack.pop();
@@ -124,10 +125,9 @@ public class ForthEngine {
 			DataStack.push(DataStack.peek());
 			break;
 		case "0x09": // OR
-			DataStack
-					.push(Integer.toHexString((Integer.parseInt(
-							DataStack.pop(), 16) | Integer.parseInt(
-							DataStack.pop(), 16))));
+			tempInt = Integer.parseInt(DataStack.pop().getString())
+					| Integer.parseInt(DataStack.pop().getString());
+			DataStack.push(new Word("" + tempInt));
 			break;
 		case "0x0A": // OVER
 			// FIXME: implement this
@@ -142,16 +142,17 @@ public class ForthEngine {
 			DataStack.push(tempA);
 			break;
 		case "0x0D": // XOR
-			DataStack
-					.push(Integer.toHexString((Integer.parseInt(
-							DataStack.pop(), 16) ^ Integer.parseInt(
-							DataStack.pop(), 16))));
+			tempInt = Integer.parseInt(DataStack.pop().getString())
+					^ Integer.parseInt(DataStack.pop().getString());
+			DataStack.push(new Word("" + tempInt));
 			break;
 		case "0x0E": // IF
-			if (Integer.parseInt(DataStack.pop()) == 1) { // if N1 == true;
-				address = currentInstruction.substring(3, 7); // take the
-																// address from
-																// the word
+			if ((DataStack.pop().getHexValue()).substring(0, 3).equals("0x1")) { // if
+																					// N1
+																					// ==
+																					// true;
+				address = currentInstruction.getAddress(); // take the address
+															// from the word
 				if (ForthParser.verboseMode)
 					System.out.println("-> IF branching to " + address);
 				counter.branch(parseHex(address)); // branch to the address
@@ -160,8 +161,8 @@ public class ForthEngine {
 				System.out.println("-> IF false, not branching");
 			break;
 		case "0x0F": // CALL
-			address = currentInstruction.substring(3, 7); // take the address
-															// from the word
+			address = currentInstruction.getAddress(); // take the address from
+														// the word
 			if (ForthParser.verboseMode)
 				System.out.println("-> CALL " + address);
 			counter.branch(parseHex(address)); // branch to the address
@@ -173,24 +174,29 @@ public class ForthEngine {
 			break;
 		case "0x11": // LIT
 			if (ForthParser.verboseMode)
-				System.out.println("-> LIT" + counter.getNext());
+				System.out.println("-> LIT " + counter.getNext());
 			DataStack.push(counter.getNext());
 			break;
 		case "0x12": // COUT
 			if (ForthParser.verboseMode)
-				System.out.println("-> COUT" + DataStack.peek());
+				System.out.println("-> COUT " + DataStack.peek());
 			System.out.println(" > " + DataStack.pop());
 			break;
 		case "0x13": // CIN
-			tempA = getCIN();
+			tempA = new Word(getCIN());
 			if (ForthParser.verboseMode)
 				System.out.println("-> CIN " + tempA);
 			DataStack.push(tempA);
 			break;
+		case "0x14": // S"
+			break;
+		case "0x15": // SOUT
+			address = currentInstruction.getAddress();
+			System.out.println(" > " + readFromRAM(parseHex(address)));
+			break;
 		}
-			
 
-		if (ForthParser.debugMode) {
+		if (ForthParser.debugMode || ForthParser.verboseMode) {
 			if (!DataStack.empty())
 				System.out
 						.println("Debug: DataStack = " + DataStack.toString());
@@ -200,20 +206,20 @@ public class ForthEngine {
 		}
 	}
 
-	public void fillRAM(String s) {
-		ram[counter.getModule()][counter.getIndex()] = s;
+	public void fillRAM(Word word) {
+		ram[counter.getModule()][counter.getIndex()] = word;
 		counter.increment();
 	}
 
-	public void push(String instruction) {
+	public void push(Word instruction) {
 		this.DataStack.push(instruction);
 	}
 
-	private String readFromRAM(RAMLocation r) {
+	private Word readFromRAM(RAMLocation r) {
 		return ram[r.getModule()][r.getIndex()];
 	}
 
-	private void writeToRAM(String s, RAMLocation r) {
+	public void writeToRAM(Word s, RAMLocation r) {
 		ram[r.getModule()][r.getIndex()] = s;
 	}
 
@@ -265,8 +271,15 @@ public class ForthEngine {
 	 * @return a RAMLocation representing the location in the RAM matrix
 	 */
 	public RAMLocation parseHex(String address) {
-		int module = Integer.parseInt(address.substring(0, 2));
-		int index = Integer.parseInt(address.substring(3, 4));
+		int module;
+		int index;
+		if (address.length() == 3) {
+			module = 0;
+			index = Integer.parseInt(address);
+		} else {
+			module = Integer.parseInt(address.substring(0, 1));
+			index = Integer.parseInt(address.substring(2));
+		}
 		return new RAMLocation(module, index);
 	}
 
@@ -313,7 +326,7 @@ public class ForthEngine {
 		 * 
 		 * @return the value of the next cell in RAM
 		 */
-		public String getNext() {
+		public Word getNext() {
 			if (this.index == 1023 && this.module == moduleCount) {
 				return ram[0][0];
 			} else if (this.index >= MEMORY_MODULE_SIZE) {
