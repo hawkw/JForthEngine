@@ -1,4 +1,6 @@
 ( A simple program to demonstrate that the ForthEngine works, by adding two numbers. )
+( Now featuring strings and prompting!)
+
 S" Please enter the first number " 0111
 S" Please enter the second number " 0112
 S" The result is: " 0113
